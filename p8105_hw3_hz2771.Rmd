@@ -13,6 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggplot2)
 library(lubridate)
+library(p8105.datasets)
+library(patchwork)
 ```
 
 
@@ -21,7 +23,6 @@ library(lubridate)
 ## Load data
 
 ```{r}
-library(p8105.datasets)
 data("instacart")
 ```
 
@@ -76,7 +77,7 @@ instacart %>%
 instacart %>% 
   filter(product_name %in% c("Pink Lady Apples", "Coffee Ice Cream")) %>% 
   group_by(product_name, order_dow) %>% 
-  summarize(mean_hour_ordered = mean(order_hour_of_day)) %>% 
+  summarize(mean_hour_ordered = round(mean(order_hour_of_day),2)) %>% 
   mutate(order_dow = recode(order_dow,
                             `0` = "Sun",
                             `1` = "Mon",
@@ -90,6 +91,76 @@ instacart %>%
 ```
 
 
+# Problem 2
+
+## Load data
+
+```{r}
+data("brfss_smart2010")
+```
+
+## Data cleaning
+
+```{r}
+brfss_df = brfss_smart2010 %>% 
+  janitor::clean_names() %>% 
+  filter(topic == "Overall Health") %>% 
+  filter(response %in% c("Excellent", "Very good", "Good", "Fair", "Poor")) %>% 
+  mutate(response = 
+           factor(response, 
+                  levels = c("Poor", "Fair", "Good", "Very good", "Excellent")))
+```
+
+## state observations
+
+### 2002
+
+```{r}
+brfss_df %>% 
+  filter(year == 2002) %>% 
+  group_by(locationabbr, locationdesc) %>% 
+  summarize() %>% 
+  count(locationabbr, name = "n_obs") %>% 
+  filter(n_obs >= 7) %>% 
+  select(locationabbr)
+```
+
+### 2010
+
+```{r}
+brfss_df %>% 
+  filter(year == 2010) %>% 
+  group_by(locationabbr, locationdesc) %>% 
+  summarize() %>% 
+  count(locationabbr, name = "n_obs") %>% 
+  filter(n_obs >= 7) %>% 
+  select(locationabbr)
+```
+
+## spaghetti plot
+
+```{r}
+brfss_df %>% 
+  filter(response == "Excellent") %>% 
+  group_by(year, locationabbr) %>% 
+  summarize(mean_val = mean(data_value)) %>% 
+  ggplot(aes(x = year, y = mean_val, group = locationabbr, color = locationabbr)) +
+  geom_line() +
+  theme(legend.position = "right")
 
 
+```
+
+## two panel plot
+
+```{r, warning=FALSE}
+brfss_df %>% 
+  filter(locationabbr == "NY") %>%
+  filter(year %in% c(2006, 2010)) %>% 
+  ggplot(aes(x = response, y = data_value, fill = response)) +
+  geom_violin(adjust = .6, width = 1.5) +
+  geom_boxplot(width = .05, fill = "black", outlier.colour = NA) +
+  stat_summary(fun.y = median, geom = "point", fill = "white", shape = 21, size = 2.5) +
+  facet_grid(~year)
+```
 
