@@ -9,3 +9,87 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+```
+
+
+# Problem 1
+
+## Load data
+
+```{r}
+library(p8105.datasets)
+data("instacart")
+```
+
+## Count aisles
+
+```{r}
+instacart %>% 
+  summarize(n_aisles = n_distinct(aisle_id))
+```
+
+## most ordered aisles
+```{r}
+instacart %>% 
+  group_by(aisle) %>% 
+  summarize(sold = n()) %>% 
+  filter(sold == max(sold)) %>% 
+  select(aisle)
+```
+
+## Visualizing aisles sold
+
+```{r}
+instacart %>% 
+  group_by(aisle) %>% 
+  summarize(n_sold = n()) %>% 
+  filter(n_sold > 10000) %>% 
+  ggplot(aes(x = reorder(aisle, -n_sold), y = n_sold)) +
+  geom_col() + 
+  scale_x_discrete(limits = ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)) +
+  xlab("aisle") +
+  ylab("ordered times")
+
+```
+
+## most popular in 3
+
+```{r}
+instacart %>% 
+  filter(aisle %in% c("baking ingredients", "dog food care", "packaged vegetables fruits")) %>% 
+  count(aisle, product_name, name = "n_item_sold") %>% 
+  group_by(aisle) %>% 
+  mutate(inner_rank = min_rank(desc(n_item_sold))) %>% 
+  filter(inner_rank < 4) %>% 
+  arrange(aisle, inner_rank) %>% 
+  select(-inner_rank, most_popular_items = product_name)
+```
+
+## apples and ice cream
+
+```{r, message=FALSE, warning=FALSE}
+instacart %>% 
+  filter(product_name %in% c("Pink Lady Apples", "Coffee Ice Cream")) %>% 
+  group_by(product_name, order_dow) %>% 
+  summarize(mean_hour_ordered = mean(order_hour_of_day)) %>% 
+  mutate(order_dow = recode(order_dow,
+                            `0` = "Sun",
+                            `1` = "Mon",
+                            `2` = "Tue",
+                            `3` = "Wed",
+                            `4` = "Thr",
+                            `5` = "Fri",
+                            `6` = "Sat")
+         ) %>% 
+  pivot_wider(names_from = order_dow, values_from = mean_hour_ordered)
+```
+
+
+
+
+
