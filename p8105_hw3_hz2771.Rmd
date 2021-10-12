@@ -164,3 +164,61 @@ brfss_df %>%
   facet_grid(~year)
 ```
 
+# Problem 3
+
+```{r}
+aclrm_data_path = "./data/accel_data.csv"
+aclrm_df = read_csv(aclrm_data_path) %>% 
+  janitor::clean_names() %>% 
+  pivot_longer("activity_1":"activity_1440", 
+               names_to = "minute", 
+               values_to = "act_count", 
+               names_prefix = "activity_") %>% 
+  mutate(minute = as.integer(minute),
+         is_weekend = ifelse(day %in% c("Saturday", "Sunday"), 1, 0))
+
+```
+
+
+```{r}
+aclrm_df %>% 
+  group_by(day, week) %>% 
+  summarize(daily_act_count = sum(act_count)) %>% 
+  pivot_wider(names_from = day, values_from = daily_act_count)
+```
+
+
+```{r}
+aclrm_df %>% 
+  ggplot(aes(x = minute, y = act_count, color = day, group = day_id)) +
+  geom_line(alpha = 0.2)
+```
+
+
+
+```{r}
+aclrm_df %>% 
+  mutate(week = recode(week,
+                       `1` = "week 1",
+                       `2` = "week 2",
+                       `3` = "week 3",
+                       `4` = "week 4",
+                       `5` = "week 5")) %>% 
+  ggplot(aes(x = minute, y = act_count)) +
+  geom_line(alpha = 0.8) +
+  geom_smooth(color = "lightblue") +
+  facet_grid(week ~ day, scales = "free")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
