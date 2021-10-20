@@ -6,7 +6,12 @@ output: github_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  fig.width = 8, 
+  fig.height = 5
+  )
 ```
 
 ```{r}
@@ -20,20 +25,50 @@ library(patchwork)
 
 # Problem 1
 
-## Load data
+## Load instacart data
 
 ```{r}
 data("instacart")
 ```
 
-## Count aisles
+The instacart dataset contains `r nrow(instacart)` rows and `r ncol(instacart)`
+columns. This dataset is a products transaction order table, with each row 
+recording a order of a product from a user, and columns representing transaction 
+information and product features.
+
+- columns including transaction information: 
+    - `order_id` 
+    - `product_id`
+    - `user_id`
+    - `add_to_cart_order`: the order in which the product was added
+    - `order_number`: the order sequence number for this user (1=first, n=nth)
+    - `order_dow`: the day of the week on which the order was placed
+    - `order_hour_of_day`: the hour of the day on which the order was placed
+    - `day_since_prior_order`: days since the last order, capped at 30, NA 
+    if order_number=1
+
+- columns including product features:
+    - `product_name`: e.g. Bulgarian Yogurt, Bag of Organic Bananas
+    - `aisle_id`: aisle identifier
+    - `aisle`: name of the aisle, e.g. fresh vegetables, fresh fruit
+    - `department_id`: department identifier
+    - `department`: the name of the department, e.g. dairy eggs, produce, 
+    beverages
+    - `reordered`: 1 if this prodcut has been ordered by this user in the past,
+    0 otherwise
+
+## How many aisles are there, and which aisles are the most items ordered from?
+
+### Count aisle number
 
 ```{r}
 instacart %>% 
   summarize(n_aisles = n_distinct(aisle_id))
 ```
+In total, there are 134 aisles.
 
-## most ordered aisles
+### Most ordered aisles
+
 ```{r}
 instacart %>% 
   group_by(aisle) %>% 
@@ -41,8 +76,9 @@ instacart %>%
   filter(sold == max(sold)) %>% 
   select(aisle)
 ```
+The aisle that the most items ordered from is `fresh vegetables`.
 
-## Visualizing aisles sold
+## Plot number of items ordered in each aisle
 
 ```{r}
 instacart %>% 
@@ -54,11 +90,12 @@ instacart %>%
   scale_x_discrete(limits = ) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)) +
   xlab("aisle") +
-  ylab("ordered times")
+  ylab("ordered times") +
+  labs(title = "Number of items ordered in each aisle")
 
 ```
 
-## most popular in 3
+## Make a table showing the three most popular items in `baking ingredients`, `dog food care`, and `packaged vegetables fruits`
 
 ```{r}
 instacart %>% 
@@ -68,10 +105,11 @@ instacart %>%
   mutate(inner_rank = min_rank(desc(n_item_sold))) %>% 
   filter(inner_rank < 4) %>% 
   arrange(aisle, inner_rank) %>% 
-  select(-inner_rank, most_popular_items = product_name)
+  select(-inner_rank, most_popular_items = product_name) %>% 
+  knitr::kable()
 ```
 
-## apples and ice cream
+## Make a table showing the mean hour of the day at which `Pink Lady Apples` and `Coffee Ice Cream` are ordered on each day of the week
 
 ```{r, message=FALSE, warning=FALSE}
 instacart %>% 
@@ -87,7 +125,9 @@ instacart %>%
                             `5` = "Fri",
                             `6` = "Sat")
          ) %>% 
-  pivot_wider(names_from = order_dow, values_from = mean_hour_ordered)
+  pivot_wider(names_from = order_dow, values_from = mean_hour_ordered) %>% 
+  knitr::kable()
+
 ```
 
 
@@ -101,17 +141,17 @@ data("brfss_smart2010")
 
 ## Data cleaning
 
-```{r}
+```{r, warning=FALSE}
 brfss_df = brfss_smart2010 %>% 
   janitor::clean_names() %>% 
   filter(topic == "Overall Health") %>% 
   filter(response %in% c("Excellent", "Very good", "Good", "Fair", "Poor")) %>% 
   mutate(response = 
-           factor(response, 
+           fct_relevel(response, 
                   levels = c("Poor", "Fair", "Good", "Very good", "Excellent")))
 ```
 
-## state observations
+## In 2002, which states were observed at 7 or more locations? What about in 2010?
 
 ### 2002
 
@@ -122,8 +162,11 @@ brfss_df %>%
   summarize() %>% 
   count(locationabbr, name = "n_obs") %>% 
   filter(n_obs >= 7) %>% 
-  select(locationabbr)
+  select(locationabbr) %>% 
+  knitr::kable()
 ```
+In 2002, the above states were observed at 7 or more locations.
+
 
 ### 2010
 
@@ -134,37 +177,45 @@ brfss_df %>%
   summarize() %>% 
   count(locationabbr, name = "n_obs") %>% 
   filter(n_obs >= 7) %>% 
-  select(locationabbr)
+  select(locationabbr) %>% 
+  knitr::kable()
 ```
 
-## spaghetti plot
+In 2010, the above states were observed at 7 or more locations.
 
-```{r}
+## Make a “spaghetti” plot of average `data_value` over time within a state
+
+```{r, warning=FALSE, message=FALSE}
 brfss_df %>% 
   filter(response == "Excellent") %>% 
   group_by(year, locationabbr) %>% 
   summarize(mean_val = mean(data_value)) %>% 
   ggplot(aes(x = year, y = mean_val, group = locationabbr, color = locationabbr)) +
   geom_line() +
-  theme(legend.position = "right")
+  theme(legend.position = "right") + 
+  labs(title = "Average data_value over time within states")
 
 
 ```
 
-## two panel plot
+## Make a two-panel plot showing distribution of data_value for responses in 2006 and 2010
 
 ```{r, warning=FALSE}
 brfss_df %>% 
   filter(locationabbr == "NY") %>%
   filter(year %in% c(2006, 2010)) %>% 
   ggplot(aes(x = response, y = data_value, fill = response)) +
-  geom_violin(adjust = .6, width = 1.5) +
+  geom_violin(adjust = .6, width = 1.5, trim = FALSE) +
   geom_boxplot(width = .05, fill = "black", outlier.colour = NA) +
   stat_summary(fun.y = median, geom = "point", fill = "white", shape = 21, size = 2.5) +
-  facet_grid(~year)
+  facet_grid(~year) +
+  theme(legend.position = "bottom") +
+  labs(title = "Distribution of data_value for responses in 2006 and 2010")
 ```
 
 # Problem 3
+
+## Load, tidy, and otherwise wrangle the data
 
 ```{r}
 aclrm_data_path = "./data/accel_data.csv"
@@ -175,26 +226,49 @@ aclrm_df = read_csv(aclrm_data_path) %>%
                values_to = "act_count", 
                names_prefix = "activity_") %>% 
   mutate(minute = as.integer(minute),
+         day = factor(day),
+         day = fct_relevel(day, "Sunday", "Monday", "Tuesday", "Wednesday", 
+                           "Thursday", "Friday", "Saturday"),
          is_weekend = ifelse(day %in% c("Saturday", "Sunday"), 1, 0))
 
 ```
+This dataset contains `r nrow(aclrm_df)` observations and `r ncol(aclrm_df)` 
+columns. Variables in this dataset are:
 
+- `week`: the week number of this week, from 1 to 5
+- `day_id`: the day number of this day, from 1 to 35  
+- `day`: suggest which day of week this day is
+- `minute`: the minute number of this minute, from 1 to 1440
+- `act_count`: the total activity number in this minute
+- `is_weekend`: 1 for weekend, 0 for weekday
+
+## Make a table showing total activity for each day
 
 ```{r}
 aclrm_df %>% 
   group_by(day, week) %>% 
   summarize(daily_act_count = sum(act_count)) %>% 
-  pivot_wider(names_from = day, values_from = daily_act_count)
+  pivot_wider(names_from = day, values_from = daily_act_count) %>% 
+  knitr::kable()
 ```
 
+In the Saturday of week 4 and 5, we can observe unreasonably low activity 
+count. In the raw data every minute in these 2 days only have 1 activity, 
+suggesting possible mistakes in collecting the data.
+
+
+## Plot the 24-hour activity time courses for each day
 
 ```{r}
 aclrm_df %>% 
   ggplot(aes(x = minute, y = act_count, color = day, group = day_id)) +
-  geom_line(alpha = 0.2)
+  geom_line(alpha = 0.2) +
+  labs(title = "24-hour activity time courses for each day")
 ```
 
 
+This plot is kind of messy. For observing the trends, we can make another plot 
+with facet:
 
 ```{r}
 aclrm_df %>% 
@@ -207,11 +281,13 @@ aclrm_df %>%
   ggplot(aes(x = minute, y = act_count)) +
   geom_line(alpha = 0.8) +
   geom_smooth(color = "lightblue") +
-  facet_grid(week ~ day, scales = "free")
+  theme(axis.text.x = element_text(angle = 15, hjust = 1, vjust = 1)) +
+  facet_grid(week ~ day)
 ```
 
 
-
+By this plot we can observe obvious activity peaks at Friday evenings and Sunday
+Mornings.
 
 
 
